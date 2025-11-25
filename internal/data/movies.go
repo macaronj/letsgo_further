@@ -5,7 +5,7 @@ import (
 )
 
 type Movie struct {
-	D         int64     `json:"id"`
+	ID        int64     `json:"id"`
 	CreatedAt time.Time `json:"-"` // Use the - directive
 	Title     string    `json:"title"`
 	Year      int32     `json:"year,omitempty"`    // Add the omitempty directive
