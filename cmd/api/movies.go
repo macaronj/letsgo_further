@@ -30,13 +30,29 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 	// Initialize a new Validator.
 	v := validator.New()
+
 	// Call the ValidateMovie() function and return a response containing the errors if
 	// any of the checks fail.
 	if data.ValidateMovie(v, movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
-	fmt.Fprintf(w, "%+v\n", input)
+
+	err = app.models.Movies.Insert(movie)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Sending HTTP response with location header
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
+
+	// Writing JSON response
+	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {

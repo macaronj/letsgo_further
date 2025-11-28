@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/lib/pq"
 	"greenlight.macaronj/internal/validator"
 )
 
@@ -36,9 +37,16 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
-// Add a placeholder method for inserting a new record in the movies table.
+// The Insert() method accepts a pointer to a movie struct, which should contain the
+// data for the new record.
 func (m MovieModel) Insert(movie *Movie) error {
-	return nil
+	query := "INSERT INTO movies (title, year, runtime, genres)	VALUES ($1, $2, $3, $4) RETURNING id, created_at, version"
+
+	// arguments: []string slice has to be passed through pq.Array
+	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	// Execute query and scan into movie struct
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 // Add a placeholder method for fetching a specific record from the movies table.
