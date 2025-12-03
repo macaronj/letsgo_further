@@ -80,5 +80,16 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 	msg.SetBodyString(mail.TypeTextPlain, plainBody.String())
 	msg.AddAlternativeString(mail.TypeTextHTML, htmlBody.String())
 
-	return m.client.DialAndSend(msg)
+	// Try to send email three times, increases chance to succed in the event of network issues
+	for i := 1; i <= 3; i++ {
+		err = m.client.DialAndSend(msg)
+		if err != nil {
+			return nil
+		}
+
+		if i != 3 {
+			time.Sleep(1000 * time.Millisecond)
+		}
+	}
+	return err
 }
