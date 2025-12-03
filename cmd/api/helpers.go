@@ -174,7 +174,11 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 // background function wraps fn with a go rotine and recovers any panic
 func (app *application) background(fn func()) {
+	app.wg.Add(1)
+
 	go func() {
+		defer app.wg.Done()
+
 		defer func() {
 			if err := recover(); err != nil {
 				app.logger.Error(fmt.Sprintf("%v", err))
