@@ -15,6 +15,7 @@ import (
 	// compiler complaining that the package isn't being used.
 	_ "github.com/lib/pq"
 	"greenlight.macaronj/internal/data"
+	"greenlight.macaronj/internal/mailer"
 )
 
 // INFO: Version number, will be generated at build time later on
@@ -36,6 +37,13 @@ type config struct {
 		burst   int
 		enabled bool
 	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
+	}
 }
 
 // INFO: Struct to hold apllication dependencies
@@ -43,23 +51,34 @@ type application struct {
 	config config
 	logger *slog.Logger
 	models data.Models
+	mailer *mailer.Mailer
 }
 
 func main() {
 	var cfg config
 
-	// Reading flags
+	// Env flags
 	flag.IntVar(&cfg.port, "port", 4000, "API Server port")
 	flag.StringVar(&cfg.env, "env", "development", "Enviroment (developemt|staging|production)")
+
+	// DB flags
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
-	// Create command line flags to read the setting values into the config struct.
-	// Notice that we use true as the default for the 'enabled' setting?
+
+	// Limiter flags
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	// Mailer flags
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "f21bf8e64ee3f7", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "bac51e848e8bc2", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.macaronj.net>", "SMTP sender")
+
 	// Parsing flags
 	flag.Parse()
 
@@ -71,12 +90,20 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
 	logger.Info("database connection pool established")
+
+	mailer, err := mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 
 	app := &application{
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db),
+		mailer: mailer,
 	}
 
 	srv := &http.Server{
