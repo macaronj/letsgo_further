@@ -32,7 +32,12 @@ type password struct {
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
+	AnonymousUser     = &User{}
 )
+
+func (u *User) IsAnonymousUser() bool {
+	return u == AnonymousUser
+}
 
 func (p *password) Set(plaintextPassword string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
