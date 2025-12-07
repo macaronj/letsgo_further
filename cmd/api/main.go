@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -15,10 +16,12 @@ import (
 	_ "github.com/lib/pq"
 	"greenlight.macaronj/internal/data"
 	"greenlight.macaronj/internal/mailer"
+	"greenlight.macaronj/internal/vcs"
 )
 
-// INFO: Version number, will be generated at build time later on
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 // INFO: Struct to hold configuration info
 type config struct {
@@ -87,8 +90,17 @@ func main() {
 		cfg.cors.trustedOrigins = strings.Fields(val)
 		return nil
 	})
+
+	// Version
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	// Parsing flags
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
